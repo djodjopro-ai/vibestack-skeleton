@@ -8,6 +8,7 @@ import {
   executeDomainTool,
   hasDomainTool,
 } from "./domain-tools.js";
+import { emitToUser } from "./websocket.js";
 
 const SONNET_MODEL = "claude-sonnet-4-6";
 if (SONNET_MODEL.includes("[1m]") || process.env.CLAUDE_MODEL?.includes("[1m]")) {
@@ -38,7 +39,7 @@ export function resolveConfirm(requestId: string, allow: boolean, userId: string
   return true;
 }
 
-const defaultConfirmFn: ConfirmFn = (userId, _toolName, _reason) => {
+const defaultConfirmFn: ConfirmFn = (userId, toolName, reason) => {
   for (const [oldId, entry] of pendingConfirms.entries()) {
     if (entry.userId === userId) {
       clearTimeout(entry.timer);
@@ -52,6 +53,7 @@ const defaultConfirmFn: ConfirmFn = (userId, _toolName, _reason) => {
       if (pendingConfirms.delete(requestId)) resolve(false);
     }, 60_000);
     pendingConfirms.set(requestId, { userId, resolve, timer });
+    emitToUser(userId, "confirm_required", { requestId, toolName, reason });
   });
 };
 
@@ -64,13 +66,12 @@ const noopFsProxy: FsProxy = async () => ({ ok: false, error: "fs bridge not wir
 
 interface UserContext {
   name: string;
-  language: string | null;
 }
 
 function buildSystemPrompt(ctx: UserContext): string {
   return `You are an AI assistant for ${ctx.name}.
 
-Communicate in ${ctx.language || "English"}. Be concise and helpful. Use tools when they help the user directly.
+Be concise and helpful. Use tools when they help the user directly.
 
 ## Honesty Rules (non-negotiable)
 1. Never claim success without a successful tool result.
@@ -80,12 +81,12 @@ Communicate in ${ctx.language || "English"}. Be concise and helpful. Use tools w
 
 async function getUserContext(userId: string): Promise<UserContext | null> {
   const row = db
-    .select({ name: users.name, language: users.language })
+    .select({ name: users.name })
     .from(users)
     .where(eq(users.id, userId))
     .get();
   if (!row) return null;
-  return { name: row.name, language: row.language };
+  return { name: row.name };
 }
 
 async function getChatHistory(userId: string, limit = HISTORY_LIMIT) {

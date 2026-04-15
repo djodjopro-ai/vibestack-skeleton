@@ -179,12 +179,6 @@ export async function getPublicConfig(): Promise<{ telegramBotUsername: string |
   }
 }
 
-// ── Telegram ───────────────────────────────────────────────
-
-export async function disconnectTelegram(): Promise<void> {
-  await request<{ ok: boolean }>("/settings/profile/telegram", { method: "DELETE" });
-}
-
 // ── Health ──────────────────────────────────────────────────
 
 export async function checkHealth() {

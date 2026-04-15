@@ -2,6 +2,8 @@ import "dotenv/config";
 import express from "express";
 import cors from "cors";
 import { createServer } from "http";
+import { existsSync } from "fs";
+import { join, resolve } from "path";
 import { initDatabase, UPLOADS_DIR } from "./db.js";
 import { initWebSocket } from "./websocket.js";
 import { initTelegram } from "./telegram.js";
@@ -32,6 +34,15 @@ app.use("/api/auth", authRoutes);
 app.use("/api/chat", chatRoutes);
 app.use("/api/subscription", subscriptionRoutes);
 app.use("/api/config", configRoutes);
+
+const APP_DIST = resolve(process.env.APP_DIST_DIR || "../app/dist");
+if (existsSync(APP_DIST)) {
+  app.use(express.static(APP_DIST));
+  app.get(/^(?!\/api\/|\/uploads\/).*/, (_req, res) => {
+    res.sendFile(join(APP_DIST, "index.html"));
+  });
+  console.log(`[Vibestack] Serving static app from ${APP_DIST}`);
+}
 
 const httpServer = createServer(app);
 initWebSocket(httpServer);

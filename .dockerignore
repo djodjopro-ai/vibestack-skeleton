@@ -1,0 +1,10 @@
+**/node_modules
+**/dist
+**/data
+**/.env
+**/.env.local
+app/src-tauri/target
+.git
+.github
+docs
+*.md

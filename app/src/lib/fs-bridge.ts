@@ -58,7 +58,8 @@ export async function setWorkingDir(path: string): Promise<void> {
   try {
     const key = getApiKey();
     if (key) {
-      fetch("http://localhost:4000/api/settings/working-directory", {
+      const base = (import.meta.env.VITE_API_URL as string | undefined) || "http://localhost:4000";
+      fetch(`${base}/api/settings/working-directory`, {
         method: "PATCH",
         headers: { "Content-Type": "application/json", "Authorization": `Bearer ${key}` },
         body: JSON.stringify({ workingDirectory: path }),

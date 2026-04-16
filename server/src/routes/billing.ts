@@ -13,6 +13,8 @@ type PolarEvent = {
     current_period_end?: string | null;
     customer?: { id?: string; external_id?: string | null; email?: string | null };
     metadata?: Record<string, unknown>;
+    subscription_id?: string | null;
+    subscription?: { id?: string; current_period_end?: string | null; status?: string } | null;
   };
 };
 
@@ -67,9 +69,12 @@ router.post("/webhook", raw({ type: "*/*" }), (req, res) => {
     return;
   }
 
-  const renewsAt = toRenewsAt(event.data?.current_period_end);
+  const renewsAt =
+    toRenewsAt(event.data?.current_period_end) ??
+    toRenewsAt(event.data?.subscription?.current_period_end);
 
   switch (event.type) {
+    case "order.paid":
     case "subscription.created":
     case "subscription.active":
     case "subscription.updated": {

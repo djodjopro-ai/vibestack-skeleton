@@ -14,6 +14,7 @@ import authRoutes from "./routes/auth.js";
 import chatRoutes from "./routes/chat.js";
 import subscriptionRoutes from "./routes/subscription.js";
 import configRoutes from "./routes/config.js";
+import billingRoutes from "./routes/billing.js";
 
 const PORT = parseInt(process.env.PORT || "4000");
 const HOST = process.env.HOST || "0.0.0.0";
@@ -22,6 +23,11 @@ initDatabase();
 
 const app = express();
 app.use(cors());
+
+// Billing webhook must be mounted BEFORE express.json so the raw body is preserved
+// for signature verification.
+app.use("/api/billing", billingRoutes);
+
 app.use(express.json({ limit: "50mb" }));
 
 app.get("/api/health", (_req, res) => {

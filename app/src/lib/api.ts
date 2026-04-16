@@ -139,6 +139,10 @@ export async function mockUpgradeSubscription(tier: "pro" = "pro") {
   );
 }
 
+export async function startCheckout() {
+  return request<{ url: string; id: string }>("/subscription/checkout", { method: "POST" });
+}
+
 export async function mockCancelSubscription() {
   return request<{ ok: boolean; status: string; renewsAt: number | null }>(
     "/subscription/mock-cancel",

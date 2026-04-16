@@ -25,6 +25,7 @@
     "node-cron": "^3.0.3",
     "pdfjs-dist": "^4.10.38",
     "socket.io": "^4.8.0",
+    "standardwebhooks": "^1.0.0",
     "unzipper": "^0.12.3",
     "uuid": "^11.1.0",
     "xlsx": "^0.18.5",

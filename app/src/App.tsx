@@ -8,6 +8,7 @@ import {
   getSubscription,
   signIn,
   signUp,
+  startCheckout,
   subscribeToPaywall,
   type SubscriptionInfo,
   type PaywallEventDetail,
@@ -140,12 +141,27 @@ export default function App({ sections = [], appName = "Vibestack" }: AppProps) 
             <p className="text-sm mb-4 text-muted">
               {paywall.reason === "quota" ? `Quota reached for ${paywall.metric}` : "This feature is Pro-only"}
             </p>
-            <button
-              onClick={() => setPaywall(null)}
-              className="px-4 py-2 rounded-lg text-sm cursor-pointer bg-primary text-white"
-            >
-              Close
-            </button>
+            <div className="flex gap-2">
+              <button
+                onClick={async () => {
+                  try {
+                    const { url } = await startCheckout();
+                    window.location.href = url;
+                  } catch (err) {
+                    alert(`Checkout failed: ${err instanceof Error ? err.message : String(err)}`);
+                  }
+                }}
+                className="px-4 py-2 rounded-lg text-sm cursor-pointer bg-primary text-white"
+              >
+                Upgrade to Pro
+              </button>
+              <button
+                onClick={() => setPaywall(null)}
+                className="px-4 py-2 rounded-lg text-sm cursor-pointer bg-surface text-foreground border border-border"
+              >
+                Not now
+              </button>
+            </div>
           </div>
         </div>
       )}

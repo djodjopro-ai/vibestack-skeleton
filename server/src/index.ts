@@ -9,6 +9,7 @@ import { initWebSocket } from "./websocket.js";
 import { initTelegram } from "./telegram.js";
 import { initCronJobs } from "./cron.js";
 import { loadDomainTools } from "./domain-tools.js";
+import { initTelemetry } from "./lib/telemetry.js";
 
 import authRoutes from "./routes/auth.js";
 import chatRoutes from "./routes/chat.js";
@@ -56,6 +57,7 @@ initWebSocket(httpServer);
 httpServer.listen(PORT, HOST, async () => {
   console.log(`[Peply] Server on :${PORT}`);
 
+  initTelemetry();
   await loadDomainTools();
   await initTelegram();
   initCronJobs();

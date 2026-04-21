@@ -2,6 +2,7 @@ import { Router, raw } from "express";
 import { eq } from "drizzle-orm";
 import { Webhook } from "standardwebhooks";
 import { db, users } from "../db.js";
+import { trackRevenue } from "../lib/telemetry.js";
 
 const router = Router();
 
@@ -88,6 +89,9 @@ router.post("/webhook", raw({ type: "*/*" }), (req, res) => {
         })
         .where(eq(users.id, userId))
         .run();
+      if (event.type === "order.paid") {
+        trackRevenue(userId, 2900, "order.paid");
+      }
       console.log(`[billing] ${event.type} userId=${userId} status=${status}`);
       break;
     }

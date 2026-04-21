@@ -3,6 +3,7 @@ import { eq, desc } from "drizzle-orm";
 import { chat, resolveConfirm } from "../agent.js";
 import { db, chatMessages } from "../db.js";
 import { authMiddleware, getUserId } from "../auth.js";
+import { trackActive } from "../lib/telemetry.js";
 
 const router = Router();
 
@@ -17,6 +18,7 @@ router.post("/", authMiddleware, async (req, res) => {
   }
 
   try {
+    trackActive(userId);
     const response = await chat(userId, message, "app");
     res.json({ response });
   } catch (err) {

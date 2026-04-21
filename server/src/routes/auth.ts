@@ -3,6 +3,7 @@ import { eq } from "drizzle-orm";
 import { v4 as uuid } from "uuid";
 import bcrypt from "bcryptjs";
 import { db, users } from "../db.js";
+import { trackSignup, trackActive } from "../lib/telemetry.js";
 
 const router = Router();
 
@@ -54,6 +55,7 @@ router.post("/signup", async (req, res) => {
     })
     .run();
 
+  trackSignup(userId, normalizedEmail);
   res.json({ userId, apiKey, needsOnboarding: true });
 });
 
@@ -90,6 +92,7 @@ router.post("/signin", async (req, res) => {
     return;
   }
 
+  trackActive(user.id);
   res.json({
     userId: user.id,
     apiKey: user.apiKey,

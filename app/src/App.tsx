@@ -23,7 +23,7 @@ interface AppProps {
   appName?: string;
 }
 
-export default function App({ sections = [], appName = "Vibestack" }: AppProps) {
+export default function App({ sections = [], appName = "Peply" }: AppProps) {
   const [activeId, setActiveId] = useState<string>(sections[0]?.id ?? "");
   const [hasApiKey, setHasApiKey] = useState<boolean>(() => getApiKey() !== null);
   const [loggedIn, setLoggedIn] = useState(false);

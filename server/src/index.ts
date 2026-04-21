@@ -47,14 +47,14 @@ if (existsSync(APP_DIST)) {
   app.get(/^(?!\/api\/|\/uploads\/).*/, (_req, res) => {
     res.sendFile(join(APP_DIST, "index.html"));
   });
-  console.log(`[Vibestack] Serving static app from ${APP_DIST}`);
+  console.log(`[Peply] Serving static app from ${APP_DIST}`);
 }
 
 const httpServer = createServer(app);
 initWebSocket(httpServer);
 
 httpServer.listen(PORT, HOST, async () => {
-  console.log(`[Vibestack] Server on :${PORT}`);
+  console.log(`[Peply] Server on :${PORT}`);
 
   await loadDomainTools();
   await initTelegram();

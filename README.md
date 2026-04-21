@@ -1,6 +1,6 @@
-# vibestack-skeleton
+# peply-skeleton
 
-Skeleton template for Vibestack-generated AI-assistant apps. Generated apps clone from this at a pinned semver tag (`v1.0.0`+).
+Skeleton template for Peply-generated AI-assistant apps. Generated apps clone from this at a pinned semver tag (`v1.0.0`+).
 
 **Ships with:** email/password auth + API keys, mock subscription tiers + quotas, Claude-powered chat agent loop with tool-use, core filesystem tools, Telegram bridge scaffolding, cron infra, plugin registry for domain extensions, UI kit (Modal/ConfirmDialog/EmptyState/ImageViewer), theme system, Tailwind v4, WebSocket realtime, Tauri 2 desktop wrapper.
 
@@ -26,7 +26,7 @@ cd app    && npm run dev    # → http://localhost:1420 (Vite)
 cd app && npm run tauri dev
 ```
 
-You should see the Vibestack auth form. Sign up → land on a blank dashboard reading "No sections registered. Add a domain plugin to get started." Theme toggle and chat infra are wired but unused until a domain plugin mounts something.
+You should see the Peply auth form. Sign up → land on a blank dashboard reading "No sections registered. Add a domain plugin to get started." Theme toggle and chat infra are wired but unused until a domain plugin mounts something.
 
 ## Extending it (domain plugins)
 
@@ -63,7 +63,7 @@ registerCronJob({
 });
 
 // Sidebar sections (frontend)
-import App from "vibestack-skeleton/app";
+import App from "peply-skeleton/app";
 const sections = [
   { id: "home", label: "Home", icon: HomeIcon, render: () => <HomePage /> },
 ];

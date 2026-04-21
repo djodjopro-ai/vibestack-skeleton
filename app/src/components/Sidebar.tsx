@@ -35,7 +35,7 @@ export default function Sidebar({
   onToggleChat,
   subscription,
   onOpenUpgrade,
-  appName = "Vibestack",
+  appName = "Peply",
 }: SidebarProps) {
   const { theme, toggleTheme } = useTheme();
   const initials = getInitials(userName);

@@ -1,0 +1,33 @@
+// Example: Register a cron job.
+// Rename this file to .ts (remove .example) to activate.
+//
+// Cron jobs run on a schedule (node-cron syntax). Use them for
+// daily reminders, periodic data processing, cleanup, etc.
+
+import { registerCronJob, hasReminder, recordReminder, logCronRun } from "../cron.js";
+import { sendTelegramNotification } from "../telegram.js";
+import { db, users } from "../db.js";
+
+// Example: Daily 8am reminder sent to all linked Telegram users
+registerCronJob({
+  name: "daily-reminder",
+  schedule: "0 8 * * *", // 8:00 AM every day
+  timezone: "Europe/Belgrade",
+  run: async () => {
+    const today = new Date().toISOString().slice(0, 10);
+    const allUsers = db.select().from(users).all();
+
+    for (const user of allUsers) {
+      if (!user.telegramChatId) continue;
+      if (hasReminder(user.id, "daily-reminder", today)) continue;
+
+      try {
+        await sendTelegramNotification(user.id, "Good morning! Here's your daily update.");
+        recordReminder(user.id, "daily-reminder", today);
+        logCronRun(user.id, "daily-reminder", "success");
+      } catch (err) {
+        logCronRun(user.id, "daily-reminder", "error", String(err));
+      }
+    }
+  },
+});

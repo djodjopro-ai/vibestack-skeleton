@@ -1,0 +1,23 @@
+// Example: Register a Telegram command.
+// Rename this file to .ts (remove .example) to activate.
+//
+// The skeleton auto-discovers commands registered via registerTelegramCommand().
+// Each command gets the grammy context + resolved userId.
+
+import { registerTelegramCommand } from "../telegram.js";
+import { sendTelegramNotification } from "../telegram.js";
+import { db } from "../db.js";
+
+// Example: /summary command that sends the user a quick status
+registerTelegramCommand({
+  name: "summary",
+  description: "Get a quick summary of your data",
+  handler: async (ctx, userId) => {
+    // Query your domain tables here
+    // const rows = db.select().from(myTable).where(eq(myTable.userId, userId)).all();
+    await ctx.reply(`Here's your summary, user ${userId}. Replace this with real domain logic.`);
+  },
+});
+
+// You can also send proactive notifications from cron jobs or other code:
+// await sendTelegramNotification(userId, "Your daily reminder!");

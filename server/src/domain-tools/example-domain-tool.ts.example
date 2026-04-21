@@ -1,0 +1,31 @@
+// Example: Register a domain tool for the AI agent.
+// Rename this file to .ts (remove .example) to activate.
+//
+// Domain tools extend what the AI agent can do. They're available
+// in both the desktop app and Telegram (unless blocked).
+// The auto-loader in domain-tools.ts picks up any .ts file here
+// that exports { definition, handler }.
+
+import type Anthropic from "@anthropic-ai/sdk";
+import type { DomainToolHandler } from "../domain-tools.js";
+
+export const definition: Anthropic.Tool = {
+  name: "lookup_item",
+  description: "Look up an item by name in the user's collection.",
+  input_schema: {
+    type: "object",
+    properties: {
+      query: { type: "string", description: "Search term" },
+    },
+    required: ["query"],
+  },
+};
+
+export const handler: DomainToolHandler = async (input, ctx) => {
+  const query = input.query as string;
+  // Query your domain tables using ctx.userId
+  // const results = db.select().from(items)
+  //   .where(and(eq(items.userId, ctx.userId), like(items.name, `%${query}%`)))
+  //   .all();
+  return JSON.stringify({ ok: true, results: [], message: `Searched for "${query}" — replace with real logic` });
+};

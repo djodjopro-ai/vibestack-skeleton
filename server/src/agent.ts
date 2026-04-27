@@ -9,6 +9,7 @@ import {
   hasDomainTool,
 } from "./domain-tools.js";
 import { emitToUser } from "./websocket.js";
+import { trackAIUsage } from "./lib/telemetry.js";
 
 const SONNET_MODEL = "claude-sonnet-4-6";
 if (SONNET_MODEL.includes("[1m]") || process.env.CLAUDE_MODEL?.includes("[1m]")) {
@@ -68,8 +69,24 @@ interface UserContext {
   name: string;
 }
 
+function buildPersonalityPrefix(): string {
+  const personality = process.env.AGENT_PERSONALITY || "professional";
+  const industry = process.env.AGENT_INDUSTRY;
+  const customPrompt = process.env.AGENT_CUSTOM_PROMPT;
+
+  let prefix = `Your communication style is ${personality}.`;
+  if (industry) prefix += ` You are an expert in the ${industry} industry.`;
+  if (customPrompt) prefix += `\n\nAdditional instructions:\n${customPrompt}`;
+
+  return prefix;
+}
+
 function buildSystemPrompt(ctx: UserContext): string {
-  return `You are an AI assistant for ${ctx.name}.
+  const personalityPrefix = buildPersonalityPrefix();
+
+  return `${personalityPrefix}
+
+You are an AI assistant for ${ctx.name}.
 
 Be concise and helpful. Use tools when they help the user directly.
 
@@ -136,6 +153,13 @@ export async function chat(
       tools,
       messages,
     });
+
+    trackAIUsage(
+      userId,
+      response.usage.input_tokens,
+      response.usage.output_tokens,
+      SONNET_MODEL,
+    );
 
     const toolUses = response.content.filter(
       (b): b is Anthropic.ToolUseBlock => b.type === "tool_use",

@@ -11,11 +11,11 @@ import { initCronJobs } from "./cron.js";
 import { loadDomainTools } from "./domain-tools.js";
 import { initTelemetry } from "./lib/telemetry.js";
 
-import authRoutes from "./routes/auth.js";
 import chatRoutes from "./routes/chat.js";
 import subscriptionRoutes from "./routes/subscription.js";
 import configRoutes from "./routes/config.js";
 import billingRoutes from "./routes/billing.js";
+import landingRoutes from "./routes/landing.js";
 
 const PORT = parseInt(process.env.PORT || "4000");
 const HOST = process.env.HOST || "0.0.0.0";
@@ -37,10 +37,12 @@ app.get("/api/health", (_req, res) => {
 
 app.use("/uploads", express.static(UPLOADS_DIR));
 
-app.use("/api/auth", authRoutes);
 app.use("/api/chat", chatRoutes);
 app.use("/api/subscription", subscriptionRoutes);
 app.use("/api/config", configRoutes);
+
+// Auto-generated landing page (only responds to GET / when APP_NAME is set)
+app.use(landingRoutes);
 
 const APP_DIST = resolve(process.env.APP_DIST_DIR || "../app/dist");
 if (existsSync(APP_DIST)) {

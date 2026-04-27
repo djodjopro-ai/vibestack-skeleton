@@ -1,5 +1,5 @@
 import { io, Socket } from "socket.io-client";
-import { getApiKey } from "./api";
+import { getSessionToken } from "./api";
 import { initFsBridge } from "./fs-bridge";
 
 const SERVER_URL =
@@ -50,10 +50,11 @@ export function connectSocket(): Socket {
 }
 
 function authenticateSocket() {
-  const apiKey = getApiKey();
-  if (!apiKey || !socket) return;
+  const token = getSessionToken();
+  if (!socket) return;
 
-  socket.emit("auth", apiKey, (result: { ok: boolean; error?: string }) => {
+  // In preview mode token may be null -- send empty string, server handles it
+  socket.emit("auth", token ?? "", (result: { ok: boolean; error?: string }) => {
     if (result.ok) {
       authenticated = true;
       console.log("[Socket] Authenticated");

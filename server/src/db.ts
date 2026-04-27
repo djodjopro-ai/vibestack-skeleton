@@ -11,7 +11,8 @@ import { dirname, join } from "path";
 
 export const users = sqliteTable("users", {
   id: text("id").primaryKey(),
-  apiKey: text("api_key").notNull().unique(),
+  clerkUserId: text("clerk_user_id").unique(),
+  apiKey: text("api_key").unique(),
   name: text("name").notNull(),
   email: text("email").unique(),
   passwordHash: text("password_hash"),
@@ -105,7 +106,8 @@ export function registerSchema(opts: { ddl?: string[]; migrations?: Migration[] 
 const CORE_DDL = `
 CREATE TABLE IF NOT EXISTS users (
   id TEXT PRIMARY KEY,
-  api_key TEXT NOT NULL UNIQUE,
+  clerk_user_id TEXT UNIQUE,
+  api_key TEXT UNIQUE,
   name TEXT NOT NULL,
   email TEXT,
   password_hash TEXT,

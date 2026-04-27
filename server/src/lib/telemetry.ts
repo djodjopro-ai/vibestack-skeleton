@@ -3,7 +3,7 @@ const TELEMETRY_TOKEN = process.env.PEPLY_TELEMETRY_TOKEN;
 const HEARTBEAT_INTERVAL_MS = 2 * 60 * 1000; // 2 minutes
 
 type TelemetryEvent = {
-  kind: "heartbeat" | "signup" | "active" | "revenue" | "error";
+  kind: "heartbeat" | "signup" | "active" | "revenue" | "error" | "ai_usage";
   payload?: Record<string, unknown>;
 };
 
@@ -58,6 +58,10 @@ export function trackRevenue(userId: string, amountCents: number, event: string)
 
 export function trackError(message: string, stack?: string) {
   enqueue({ kind: "error", payload: { message, stack: stack?.slice(0, 2000) } });
+}
+
+export function trackAIUsage(userId: string, inputTokens: number, outputTokens: number, model: string) {
+  enqueue({ kind: "ai_usage", payload: { userId, inputTokens, outputTokens, model } });
 }
 
 export function startHeartbeat() {

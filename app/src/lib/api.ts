@@ -9,22 +9,19 @@ export function imageUrl(path: string | null | undefined): string {
   return `${SERVER_ORIGIN}${path.startsWith("/") ? path : `/${path}`}`;
 }
 
-let apiKey: string | null = null;
+// Session token (Clerk JWT or null for preview mode)
+let sessionToken: string | null = null;
 
-export function setApiKey(key: string) {
-  apiKey = key;
-  localStorage.setItem("vibestack_api_key", key);
+export function setSessionToken(token: string | null) {
+  sessionToken = token;
 }
 
-export function getApiKey(): string | null {
-  if (apiKey) return apiKey;
-  apiKey = localStorage.getItem("vibestack_api_key");
-  return apiKey;
+export function getSessionToken(): string | null {
+  return sessionToken;
 }
 
-export function clearApiKey() {
-  apiKey = null;
-  localStorage.removeItem("vibestack_api_key");
+export function clearSessionToken() {
+  sessionToken = null;
 }
 
 // ── Paywall event emitter ──────────────────────────────────
@@ -67,12 +64,12 @@ export class QuotaExceededError extends Error {
 }
 
 export async function request<T>(path: string, options: RequestInit = {}): Promise<T> {
-  const key = getApiKey();
+  const token = getSessionToken();
   const headers: Record<string, string> = {
     "Content-Type": "application/json",
     ...(options.headers as Record<string, string>),
   };
-  if (key) headers["Authorization"] = `Bearer ${key}`;
+  if (token) headers["Authorization"] = `Bearer ${token}`;
 
   const res = await fetch(`${API_URL}${path}`, { ...options, headers });
 
@@ -85,26 +82,6 @@ export async function request<T>(path: string, options: RequestInit = {}): Promi
     throw new Error(error.error || "Request failed");
   }
   return res.json();
-}
-
-// ── Auth ────────────────────────────────────────────────────
-
-export async function signUp(data: { email: string; password: string; name: string }) {
-  const result = await request<{ userId: string; apiKey: string; needsOnboarding: boolean }>(
-    "/auth/signup",
-    { method: "POST", body: JSON.stringify(data) }
-  );
-  setApiKey(result.apiKey);
-  return { userId: result.userId, needsOnboarding: result.needsOnboarding };
-}
-
-export async function signIn(data: { email: string; password: string }) {
-  const result = await request<{ userId: string; apiKey: string; needsOnboarding: boolean }>(
-    "/auth/signin",
-    { method: "POST", body: JSON.stringify(data) }
-  );
-  setApiKey(result.apiKey);
-  return { userId: result.userId, needsOnboarding: result.needsOnboarding };
 }
 
 // ── Profile ─────────────────────────────────────────────────

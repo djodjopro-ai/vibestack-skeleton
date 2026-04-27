@@ -1,12 +1,21 @@
 import { Server as SocketServer, Socket } from "socket.io";
 import { Server as HttpServer } from "http";
+import { createClerkClient } from "@clerk/express";
+import { verifyToken } from "@clerk/backend";
 import { eq } from "drizzle-orm";
+import { v4 as uuid } from "uuid";
 import { db, users } from "./db.js";
 import { chat } from "./agent.js";
 
 let io: SocketServer;
 
 const authenticatedSockets = new Map<string, string>();
+
+function getClerkClient() {
+  const key = process.env.CLERK_SECRET_KEY;
+  if (!key) return null;
+  return createClerkClient({ secretKey: key });
+}
 
 export function initWebSocket(httpServer: HttpServer) {
   io = new SocketServer(httpServer, {
@@ -16,22 +25,73 @@ export function initWebSocket(httpServer: HttpServer) {
   io.on("connection", (socket: Socket) => {
     console.log(`[WS] Client connected: ${socket.id}`);
 
-    socket.on("auth", (apiKey: string, callback: (result: { ok: boolean; error?: string }) => void) => {
-      const user = db
-        .select({ id: users.id, name: users.name })
-        .from(users)
-        .where(eq(users.apiKey, apiKey))
-        .get();
+    socket.on("auth", async (token: string, callback: (result: { ok: boolean; error?: string }) => void) => {
+      // Preview mode: auto-authenticate
+      if (process.env.PREVIEW_MODE === "true") {
+        let previewUser = db
+          .select({ id: users.id, name: users.name })
+          .from(users)
+          .where(eq(users.email, "preview@peply.dev"))
+          .get();
 
-      if (!user) {
-        callback({ ok: false, error: "Invalid API key" });
+        if (!previewUser) {
+          const id = uuid();
+          db.insert(users)
+            .values({
+              id,
+              name: "Preview User",
+              email: "preview@peply.dev",
+              onboardingComplete: true,
+              createdAt: new Date(),
+              updatedAt: new Date(),
+            })
+            .run();
+          previewUser = { id, name: "Preview User" };
+        }
+
+        authenticatedSockets.set(socket.id, previewUser.id);
+        socket.join(`user:${previewUser.id}`);
+        callback({ ok: true });
+        console.log(`[WS] Authenticated: ${previewUser.name} (preview mode)`);
         return;
       }
 
-      authenticatedSockets.set(socket.id, user.id);
-      socket.join(`user:${user.id}`);
-      callback({ ok: true });
-      console.log(`[WS] Authenticated: ${user.name} (${user.id})`);
+      // Clerk token verification
+      const secretKey = process.env.CLERK_SECRET_KEY;
+      const clerk = getClerkClient();
+      if (!secretKey || !clerk || !token) {
+        callback({ ok: false, error: "Auth not configured or missing token" });
+        return;
+      }
+
+      try {
+        const payload = await verifyToken(token, { secretKey });
+        const clerkUserId = payload.sub;
+
+        let localUser = db
+          .select({ id: users.id, name: users.name })
+          .from(users)
+          .where(eq(users.clerkUserId, clerkUserId))
+          .get();
+
+        if (!localUser) {
+          const clerkUser = await clerk.users.getUser(clerkUserId);
+          const email = clerkUser.emailAddresses[0]?.emailAddress ?? "";
+          const name = [clerkUser.firstName, clerkUser.lastName].filter(Boolean).join(" ") || "User";
+          const id = uuid();
+          db.insert(users)
+            .values({ id, clerkUserId, name, email, onboardingComplete: true, createdAt: new Date(), updatedAt: new Date() })
+            .run();
+          localUser = { id, name };
+        }
+
+        authenticatedSockets.set(socket.id, localUser.id);
+        socket.join(`user:${localUser.id}`);
+        callback({ ok: true });
+        console.log(`[WS] Authenticated: ${localUser.name} (${localUser.id})`);
+      } catch {
+        callback({ ok: false, error: "Invalid token" });
+      }
     });
 
     socket.on("chat:message", async (message: string, callback: (response: string) => void) => {

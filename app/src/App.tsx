@@ -1,13 +1,12 @@
-import { useState, useEffect } from "react";
+import { useState, useEffect, useCallback } from "react";
+import { useAuth, useUser, SignIn } from "@clerk/clerk-react";
 import Sidebar from "./components/Sidebar";
 import {
-  getApiKey,
-  clearApiKey,
+  clearSessionToken,
+  setSessionToken,
   checkHealth,
   getProfile,
   getSubscription,
-  signIn,
-  signUp,
   startCheckout,
   subscribeToPaywall,
   type SubscriptionInfo,
@@ -16,16 +15,86 @@ import {
 import { connectSocket, isConnected } from "./lib/socket";
 import type { SectionConfig, User } from "./lib/types";
 
+const isPreview = import.meta.env.VITE_PREVIEW_MODE === "true";
+const hasClerk = !!import.meta.env.VITE_CLERK_PUBLISHABLE_KEY;
+
 // Domain apps import this and pass their sections via `<App sections={[...]} />`.
-// The skeleton defaults to an empty array → blank dashboard with working auth + chat + theme.
+// The skeleton defaults to an empty array -> blank dashboard with working auth + chat + theme.
 interface AppProps {
   sections?: SectionConfig[];
   appName?: string;
 }
 
 export default function App({ sections = [], appName = "Peply" }: AppProps) {
+  // In preview mode or when Clerk is not configured, render the inner app directly.
+  // When Clerk is active, wrap with the auth gate.
+  if (isPreview || !hasClerk) {
+    return <AppInner sections={sections} appName={appName} mode="preview" />;
+  }
+  return <ClerkGate sections={sections} appName={appName} />;
+}
+
+/** Clerk auth gate: waits for Clerk to load, shows SignIn or the app */
+function ClerkGate({ sections, appName }: AppProps) {
+  const { isLoaded, isSignedIn, getToken } = useAuth();
+  const { user } = useUser();
+  const [token, setToken] = useState<string | null>(null);
+  const [tokenReady, setTokenReady] = useState(false);
+
+  useEffect(() => {
+    if (!isLoaded || !isSignedIn) return;
+    getToken().then((t) => {
+      setToken(t);
+      setSessionToken(t);
+      setTokenReady(true);
+    });
+  }, [isLoaded, isSignedIn, getToken]);
+
+  if (!isLoaded) {
+    return (
+      <div className="flex items-center justify-center h-full bg-background">
+        <p className="text-muted">Loading...</p>
+      </div>
+    );
+  }
+
+  if (!isSignedIn) {
+    return (
+      <div className="flex items-center justify-center h-full bg-background">
+        <SignIn routing="hash" fallbackRedirectUrl="/" />
+      </div>
+    );
+  }
+
+  if (!tokenReady) {
+    return (
+      <div className="flex items-center justify-center h-full bg-background">
+        <p className="text-muted">Loading...</p>
+      </div>
+    );
+  }
+
+  const clerkName = [user?.firstName, user?.lastName].filter(Boolean).join(" ") || undefined;
+
+  return (
+    <AppInner
+      sections={sections}
+      appName={appName}
+      mode="clerk"
+      initialToken={token}
+      clerkDisplayName={clerkName}
+    />
+  );
+}
+
+interface AppInnerProps extends AppProps {
+  mode: "preview" | "clerk";
+  initialToken?: string | null;
+  clerkDisplayName?: string;
+}
+
+function AppInner({ sections = [], appName = "Peply", mode, initialToken, clerkDisplayName }: AppInnerProps) {
   const [activeId, setActiveId] = useState<string>(sections[0]?.id ?? "");
-  const [hasApiKey, setHasApiKey] = useState<boolean>(() => getApiKey() !== null);
   const [loggedIn, setLoggedIn] = useState(false);
   const [subscription, setSubscription] = useState<SubscriptionInfo | null>(null);
   const [paywall, setPaywall] = useState<PaywallEventDetail | null>(null);
@@ -38,34 +107,47 @@ export default function App({ sections = [], appName = "Peply" }: AppProps) {
     return off;
   }, []);
 
-  useEffect(() => {
-    (async () => {
-      const healthy = await checkHealth();
-      setServerUp(healthy);
-      const key = getApiKey();
-      if (key && healthy) {
-        try {
-          const profile = (await getProfile()) as User;
-          setUserName(profile.name);
-          setLoggedIn(true);
-          connectSocket();
-          const sub = await getSubscription().catch(() => null);
-          setSubscription(sub);
-        } catch {
-          clearApiKey();
-          setHasApiKey(false);
-        }
-      }
+  const bootstrap = useCallback(async () => {
+    if (mode === "clerk" && initialToken) {
+      setSessionToken(initialToken);
+    }
+
+    const healthy = await checkHealth();
+    setServerUp(healthy);
+
+    if (!healthy) {
       setChecking(false);
-    })();
-  }, []);
+      return;
+    }
+
+    try {
+      const profile = (await getProfile()) as User;
+      setUserName(profile.name);
+      setLoggedIn(true);
+      connectSocket();
+      const sub = await getSubscription().catch(() => null);
+      setSubscription(sub);
+    } catch {
+      clearSessionToken();
+      setLoggedIn(false);
+    }
+
+    setChecking(false);
+  }, [mode, initialToken]);
+
+  useEffect(() => {
+    bootstrap();
+  }, [bootstrap]);
 
   function handleLogout() {
-    clearApiKey();
-    setHasApiKey(false);
+    clearSessionToken();
     setLoggedIn(false);
     setUserName("");
     setSubscription(null);
+    // In Clerk mode, a full reload will trigger the Clerk sign-out flow
+    if (mode === "clerk") {
+      window.location.reload();
+    }
   }
 
   if (checking) {
@@ -94,23 +176,16 @@ export default function App({ sections = [], appName = "Peply" }: AppProps) {
     );
   }
 
-  if (!hasApiKey || !loggedIn) {
+  if (!loggedIn && mode !== "preview") {
     return (
-      <AuthForm
-        appName={appName}
-        onAuthed={async (name) => {
-          setHasApiKey(true);
-          setUserName(name);
-          setLoggedIn(true);
-          connectSocket();
-          const sub = await getSubscription().catch(() => null);
-          setSubscription(sub);
-        }}
-      />
+      <div className="flex items-center justify-center h-full bg-background">
+        <p className="text-muted">Loading...</p>
+      </div>
     );
   }
 
   const active = sections.find((s) => s.id === activeId);
+  const displayName = userName || clerkDisplayName || "User";
 
   return (
     <div className="flex h-full">
@@ -118,7 +193,7 @@ export default function App({ sections = [], appName = "Peply" }: AppProps) {
         sections={sections}
         active={activeId}
         onSelect={setActiveId}
-        userName={userName}
+        userName={displayName}
         connected={isConnected() ?? false}
         onLogout={handleLogout}
         subscription={subscription}
@@ -128,7 +203,7 @@ export default function App({ sections = [], appName = "Peply" }: AppProps) {
         {active ? active.render() : (
           <div className="h-full flex items-center justify-center text-muted">
             <div className="text-center">
-              <p className="text-lg font-medium mb-2">Welcome, {userName}</p>
+              <p className="text-lg font-medium mb-2">Welcome, {displayName}</p>
               <p className="text-sm">No sections registered. Add a domain plugin to get started.</p>
             </div>
           </div>
@@ -165,83 +240,6 @@ export default function App({ sections = [], appName = "Peply" }: AppProps) {
           </div>
         </div>
       )}
-    </div>
-  );
-}
-
-function AuthForm({ appName, onAuthed }: { appName: string; onAuthed: (name: string) => void }) {
-  const [mode, setMode] = useState<"signin" | "signup">("signin");
-  const [email, setEmail] = useState("");
-  const [password, setPassword] = useState("");
-  const [name, setName] = useState("");
-  const [error, setError] = useState<string | null>(null);
-  const [busy, setBusy] = useState(false);
-
-  async function submit(e: React.FormEvent) {
-    e.preventDefault();
-    setError(null);
-    setBusy(true);
-    try {
-      if (mode === "signup") {
-        await signUp({ email, password, name });
-        onAuthed(name);
-      } else {
-        await signIn({ email, password });
-        const profile = (await getProfile()) as User;
-        onAuthed(profile.name);
-      }
-    } catch (err) {
-      setError(err instanceof Error ? err.message : "Auth failed");
-    } finally {
-      setBusy(false);
-    }
-  }
-
-  return (
-    <div className="flex items-center justify-center h-full bg-background">
-      <form onSubmit={submit} className="w-full max-w-sm p-6 rounded-xl bg-card border border-border space-y-4">
-        <h1 className="text-2xl font-bold text-foreground">{appName}</h1>
-        {mode === "signup" && (
-          <input
-            className="w-full px-3 py-2 rounded-lg border border-border bg-surface text-foreground"
-            placeholder="Name"
-            value={name}
-            onChange={(e) => setName(e.target.value)}
-            required
-          />
-        )}
-        <input
-          type="email"
-          className="w-full px-3 py-2 rounded-lg border border-border bg-surface text-foreground"
-          placeholder="Email"
-          value={email}
-          onChange={(e) => setEmail(e.target.value)}
-          required
-        />
-        <input
-          type="password"
-          className="w-full px-3 py-2 rounded-lg border border-border bg-surface text-foreground"
-          placeholder="Password"
-          value={password}
-          onChange={(e) => setPassword(e.target.value)}
-          required
-        />
-        {error && <p className="text-sm text-destructive">{error}</p>}
-        <button
-          type="submit"
-          disabled={busy}
-          className="w-full px-4 py-2 rounded-lg bg-primary text-white font-medium disabled:opacity-50 cursor-pointer"
-        >
-          {busy ? "..." : mode === "signup" ? "Sign up" : "Sign in"}
-        </button>
-        <button
-          type="button"
-          onClick={() => setMode(mode === "signin" ? "signup" : "signin")}
-          className="w-full text-sm text-muted hover:text-foreground cursor-pointer"
-        >
-          {mode === "signin" ? "Need an account? Sign up" : "Have an account? Sign in"}
-        </button>
-      </form>
     </div>
   );
 }

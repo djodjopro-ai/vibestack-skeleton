@@ -1,6 +1,6 @@
 import { invoke } from "@tauri-apps/api/core";
 import type { Socket } from "socket.io-client";
-import { getApiKey } from "./api";
+import { getSessionToken } from "./api";
 
 export function initFsBridge(socket: Socket) {
   socket.on(
@@ -56,14 +56,14 @@ export async function setWorkingDir(path: string): Promise<void> {
 
   // Sync working directory to server (fire-and-forget)
   try {
-    const key = getApiKey();
-    if (key) {
+    const token = getSessionToken();
+    if (token) {
       const base =
         (import.meta.env.VITE_API_URL as string | undefined) ||
         (import.meta.env.PROD ? "" : "http://localhost:4000");
       fetch(`${base}/api/settings/working-directory`, {
         method: "PATCH",
-        headers: { "Content-Type": "application/json", "Authorization": `Bearer ${key}` },
+        headers: { "Content-Type": "application/json", "Authorization": `Bearer ${token}` },
         body: JSON.stringify({ workingDirectory: path }),
       }).catch(() => {});
     }

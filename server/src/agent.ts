@@ -11,13 +11,22 @@ import {
 import { emitToUser } from "./websocket.js";
 import { trackAIUsage } from "./lib/telemetry.js";
 
-const SONNET_MODEL = "claude-sonnet-4-6";
-if (SONNET_MODEL.includes("[1m]") || process.env.CLAUDE_MODEL?.includes("[1m]")) {
-  throw new Error("1M-context Sonnet variant is not permitted — too expensive");
+const ALLOWED_MODELS = new Set([
+  "claude-haiku-4-5-20251001",
+  "claude-sonnet-4-5-20250929",
+  "claude-sonnet-4-6",
+]);
+
+function resolveModel(): string {
+  const env = process.env.CLAUDE_MODEL?.trim();
+  if (env && ALLOWED_MODELS.has(env)) return env;
+  return "claude-sonnet-4-6";
 }
 
+const AGENT_MODEL = resolveModel();
+
 const client = new Anthropic();
-const MAX_TOOL_ITERATIONS = 6;
+const MAX_TOOL_ITERATIONS = Math.min(Math.max(parseInt(process.env.MAX_TOOLS_PER_TURN ?? "6", 10) || 6, 1), 20);
 const HISTORY_LIMIT = 10;
 
 // ── Destructive-op confirmation ──────────────────────────
@@ -147,7 +156,7 @@ export async function chat(
 
   for (let i = 0; i < MAX_TOOL_ITERATIONS; i++) {
     const response = await client.messages.create({
-      model: SONNET_MODEL,
+      model: AGENT_MODEL,
       max_tokens: 4096,
       system: buildSystemPrompt(ctx),
       tools,
@@ -158,7 +167,7 @@ export async function chat(
       userId,
       response.usage.input_tokens,
       response.usage.output_tokens,
-      SONNET_MODEL,
+      AGENT_MODEL,
     );
 
     const toolUses = response.content.filter(

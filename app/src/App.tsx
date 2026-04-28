@@ -1,6 +1,8 @@
 import { useState, useEffect, useCallback } from "react";
 import { useAuth, useUser, SignIn } from "@clerk/clerk-react";
 import Sidebar from "./components/Sidebar";
+import ChatSection from "./components/ChatSection";
+import { MessageSquare } from "lucide-react";
 import {
   clearSessionToken,
   setSessionToken,
@@ -17,6 +19,13 @@ import type { SectionConfig, User } from "./lib/types";
 
 const isPreview = import.meta.env.VITE_PREVIEW_MODE === "true";
 const hasClerk = !!import.meta.env.VITE_CLERK_PUBLISHABLE_KEY;
+
+const BUILT_IN_CHAT_SECTION: SectionConfig = {
+  id: "chat",
+  label: "Chat",
+  icon: MessageSquare,
+  render: () => <ChatSection />,
+};
 
 // Domain apps import this and pass their sections via `<App sections={[...]} />`.
 // The skeleton defaults to an empty array -> blank dashboard with working auth + chat + theme.
@@ -94,7 +103,10 @@ interface AppInnerProps extends AppProps {
 }
 
 function AppInner({ sections = [], appName = "Peply", mode, initialToken, clerkDisplayName }: AppInnerProps) {
-  const [activeId, setActiveId] = useState<string>(sections[0]?.id ?? "");
+  const hasChatSection = sections.some((s) => s.id === "chat");
+  const allSections = hasChatSection ? sections : [...sections, BUILT_IN_CHAT_SECTION];
+
+  const [activeId, setActiveId] = useState<string>(allSections[0]?.id || "chat");
   const [loggedIn, setLoggedIn] = useState(false);
   const [subscription, setSubscription] = useState<SubscriptionInfo | null>(null);
   const [paywall, setPaywall] = useState<PaywallEventDetail | null>(null);
@@ -184,13 +196,13 @@ function AppInner({ sections = [], appName = "Peply", mode, initialToken, clerkD
     );
   }
 
-  const active = sections.find((s) => s.id === activeId);
+  const active = allSections.find((s) => s.id === activeId);
   const displayName = userName || clerkDisplayName || "User";
 
   return (
     <div className="flex h-full">
       <Sidebar
-        sections={sections}
+        sections={allSections}
         active={activeId}
         onSelect={setActiveId}
         userName={displayName}

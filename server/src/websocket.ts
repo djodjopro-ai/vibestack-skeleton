@@ -4,6 +4,7 @@ import { createClerkClient } from "@clerk/express";
 import { verifyToken } from "@clerk/backend";
 import { eq } from "drizzle-orm";
 import { v4 as uuid } from "uuid";
+import { randomBytes } from "crypto";
 import { db, users } from "./db.js";
 import { chat } from "./agent.js";
 
@@ -41,6 +42,7 @@ export function initWebSocket(httpServer: HttpServer) {
               id,
               name: "Preview User",
               email: "preview@peply.dev",
+              apiKey: randomBytes(24).toString("hex"),
               onboardingComplete: true,
               createdAt: new Date(),
               updatedAt: new Date(),
@@ -80,7 +82,7 @@ export function initWebSocket(httpServer: HttpServer) {
           const name = [clerkUser.firstName, clerkUser.lastName].filter(Boolean).join(" ") || "User";
           const id = uuid();
           db.insert(users)
-            .values({ id, clerkUserId, name, email, onboardingComplete: true, createdAt: new Date(), updatedAt: new Date() })
+            .values({ id, clerkUserId, name, email, apiKey: randomBytes(24).toString("hex"), onboardingComplete: true, createdAt: new Date(), updatedAt: new Date() })
             .run();
           localUser = { id, name };
         }

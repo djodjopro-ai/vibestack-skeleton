@@ -2,6 +2,7 @@ import { createClerkClient } from "@clerk/express";
 import { verifyToken } from "@clerk/backend";
 import { eq } from "drizzle-orm";
 import { v4 as uuid } from "uuid";
+import { randomBytes } from "crypto";
 import { db, users } from "./db.js";
 import type { Request, Response, NextFunction } from "express";
 
@@ -35,6 +36,7 @@ export function authMiddleware(req: Request, res: Response, next: NextFunction) 
           id,
           name: "Preview User",
           email: "preview@peply.dev",
+          apiKey: randomBytes(24).toString("hex"),
           onboardingComplete: true,
           createdAt: new Date(),
           updatedAt: new Date(),
@@ -90,6 +92,7 @@ export function authMiddleware(req: Request, res: Response, next: NextFunction) 
               clerkUserId,
               name,
               email,
+              apiKey: randomBytes(24).toString("hex"),
               onboardingComplete: true,
               createdAt: new Date(),
               updatedAt: new Date(),
